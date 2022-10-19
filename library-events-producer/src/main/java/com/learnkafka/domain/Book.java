@@ -1,11 +1,12 @@
 package com.learnkafka.domain;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -13,13 +14,13 @@ import lombok.NoArgsConstructor;
 @Builder
 public class Book {
 
-	@JsonProperty("bookId")
-	private Integer bookId;
+    @NotNull
+    private Integer bookId;
 
-	@JsonProperty("bookName")
-	private String bookName;
+    @NotBlank
+    private String bookName;
 
-	@JsonProperty("bookAuthor")
-	private String bookAuthor;
+    @NotBlank
+    private String bookAuthor;
 
 }

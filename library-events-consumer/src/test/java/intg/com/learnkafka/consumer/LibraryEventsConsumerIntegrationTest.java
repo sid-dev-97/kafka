@@ -35,7 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
-@EmbeddedKafka(topics = {"library-events"}, partitions = 3)
+@EmbeddedKafka(topics = {"library-events", "library-events.RETRY", "library-events.DLT"}, partitions = 3)
 @TestPropertySource(properties = {"spring.kafka.producer.bootstrap-servers=${spring.embedded.kafka.brokers}"
 , "spring.kafka.consumer.bootstrap-servers=${spring.embedded.kafka.brokers}"})
 public class LibraryEventsConsumerIntegrationTest {
@@ -136,10 +136,24 @@ public class LibraryEventsConsumerIntegrationTest {
         latch.await(5, TimeUnit.SECONDS);
 
         //then
-        verify(libraryEventsConsumerSpy, times(10)).onMessage(isA(ConsumerRecord.class));
-        verify(libraryEventsServiceSpy, times(10)).processLibraryEvent(isA(ConsumerRecord.class));
+        verify(libraryEventsConsumerSpy, times(1)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventsServiceSpy, times(1)).processLibraryEvent(isA(ConsumerRecord.class));
     }
 
+    @Test
+    void publishUpdateLibraryEvent_999_LibraryEvent() throws JsonProcessingException, ExecutionException, InterruptedException {
+        //given
 
+        String json = "{\"libraryEventId\":999,\"libraryEventType\":\"UPDATE\",\"book\":{\"bookId\":456,\"bookName\":\"Kafka Using Spring Boot\",\"bookAuthor\":\"Dilip\"}}";
+        kafkaTemplate.sendDefault(json).get();
+
+        //when
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(5, TimeUnit.SECONDS);
+
+        //then
+        verify(libraryEventsConsumerSpy, times(3)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventsServiceSpy, times(3)).processLibraryEvent(isA(ConsumerRecord.class));
+    }
 
 }
