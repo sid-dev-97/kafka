@@ -1,9 +1,12 @@
 package com.learnkafka.config;
 
+import com.learnkafka.service.FailureService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +15,8 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ConsumerRecordRecoverer;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
@@ -23,9 +28,16 @@ import java.util.List;
 @EnableKafka
 @Slf4j
 public class LibraryEventsConsumerConfig {
+	
+	public static final  String RETRY = "RETRY";
+    public static final  String DEAD = "DEAD";
+    public static final String SUCCESS = "SUCCESS";
 
     @Autowired
     KafkaTemplate kafkaTemplate;
+	
+	@Autowired
+    FailureService failureService;
 
     @Value("${topics.retry}")
     private String retryTopic;
@@ -43,6 +55,21 @@ public class LibraryEventsConsumerConfig {
                     }
                 });
     }
+	
+	ConsumerRecordRecoverer consumerRecordRecoverer = (consumerRecord, e) -> {
+        log.error("Exception in consumerRecordRecoverer : {} ", e.getMessage(), e);
+        var record = (ConsumerRecord<Integer, String>)consumerRecord;
+        if (e.getCause() instanceof RecoverableDataAccessException) {
+            //recovery logic
+            log.info("Inside Recovery");
+            failureService.saveFailedRecord(record, e, RETRY);
+        }
+        else {
+            // non-recovery logic
+            log.info("Inside Non-Recovery");
+            failureService.saveFailedRecord(record, e, DEAD);
+        }
+    };
 
     private DefaultErrorHandler errorHandler() {
 
@@ -58,6 +85,8 @@ public class LibraryEventsConsumerConfig {
         exponentialBackOff.setMultiplier(2.0);
         exponentialBackOff.setMaxInterval(2_000L);
         var errorHandler = new DefaultErrorHandler(
+                //publishingRecoverer(),
+				consumerRecordRecoverer,
                 //fixedBackOff
                 exponentialBackOff
         );

@@ -81,6 +81,5 @@ public class LibraryEventsControllerIntegrationTest {
         String expectedRecord ="{\"libraryEventId\":null,\"libraryEventType\":\"NEW\",\"book\":{\"bookId\":123,\"bookName\":\"Kafka using Spring Boot\",\"bookAuthor\":\"Dilip\"}}";
         String value = consumerRecord.value();
         assertEquals(expectedRecord, value);
-
     }
 }
